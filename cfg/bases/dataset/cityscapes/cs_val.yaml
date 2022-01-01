@@ -1,0 +1,6 @@
+input_file: "input_files/cs_val.txt"
+sem: true
+sem_map: "cs19"
+sem_cmap: "cmap19"
+dep: true
+dep_cmap: "plasma"
