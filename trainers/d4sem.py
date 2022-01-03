@@ -29,12 +29,7 @@ class D4SemanticsTrainer:
             Resize(img_size, train_sem_size, (-1, -1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
             RandomHorizontalFlip(p=0.5),
-            ColorJitter(
-                brightness=0.5,
-                contrast=0.5,
-                saturation=0.5,
-                hue=0.5,
-            ),
+            ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
         ]
 
         train_transform = Compose(train_transforms)
@@ -82,7 +77,7 @@ class D4SemanticsTrainer:
         self.model = Res_Deeplab(num_classes=num_classes).cuda()
         self.model.eval()
 
-        url = "https://download.pytorch.org/models/resnet101-5d3b4d8f.pth"
+        url = "https://download.pytorch.org/models/resnet50-19c8e357.pth"
         saved_state_dict = model_zoo.load_url(url)
         new_params = self.model.state_dict().copy()
         for i in saved_state_dict:

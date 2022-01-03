@@ -255,6 +255,7 @@ class ResNet(nn.Module):
         ]
 
 
-def Res_Deeplab(num_classes=21, use_sigmoid=False):
-    model = ResNet(Bottleneck, [3, 4, 23, 3], num_classes, use_sigmoid)
+def Res_Deeplab(num_classes=21, use_sigmoid=False, resnet101=False):
+    layers = 23 if resnet101 else 50
+    model = ResNet(Bottleneck, [3, 4, layers, 3], num_classes, use_sigmoid)
     return model
