@@ -2,6 +2,9 @@ dep:
   train_dataset: "@BASE(dataset)"
   val_source_dataset: "@BASE(dataset)"
   val_target_dataset: "@BASE(dataset)"
+  img_size: !!python/tuple [512, 1024]
+  train_dep_size: !!python/tuple [512, 1024]
+  val_dep_size: !!python/tuple [1024, 2048]
   train_bs: 8
   val_bs: 8
   lr: 1e-3
@@ -12,6 +15,9 @@ sem:
   train_dataset: "@BASE(dataset)"
   val_source_dataset: "@BASE(dataset)"
   val_target_dataset: "@BASE(dataset)"
+  img_size: !!python/tuple [512, 1024]
+  train_dep_size: !!python/tuple [512, 1024]
+  val_dep_size: !!python/tuple [1024, 2048]
   train_bs: 8
   val_bs: 8
   lr: 1e-3

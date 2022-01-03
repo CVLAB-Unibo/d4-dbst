@@ -21,10 +21,12 @@ from trainers.metrics import IoU
 class D4SemanticsTrainer:
     def __init__(self) -> None:
         train_dset_cfg = hcfg("sem.train_dataset", Dict[str, Any])
+        img_size = hcfg("sem.img_size", Tuple[int, int])
+        train_sem_size = hcfg("sem.train_sem_size", Tuple[int, int])
 
         train_transforms = [
             ToTensor(),
-            Resize(img_size, sem_size, (-1, -1)),
+            Resize(img_size, train_sem_size, (-1, -1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
             RandomHorizontalFlip(p=0.5),
             ColorJitter(
@@ -49,9 +51,11 @@ class D4SemanticsTrainer:
 
         val_source_dset_cfg = hcfg("sem.val_source_dataset", Dict[str, Any])
         val_target_dset_cfg = hcfg("sem.val_target_dataset", Dict[str, Any])
+        val_sem_size = hcfg("sem.val_sem_size", Tuple[int, int])
 
         val_transforms = [
             ToTensor(),
+            Resize(img_size, val_sem_size, (-1, -1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
 

@@ -21,10 +21,12 @@ from trainers.metrics import RMSE
 class D4DepthTrainer:
     def __init__(self) -> None:
         train_dset_cfg = hcfg("dep.train_dataset", Dict[str, Any])
+        img_size = hcfg("dep.img_size", Tuple[int, int])
+        train_dep_size = hcfg("dep.train_dep_size", Tuple[int, int])
 
         train_transforms = [
             ToTensor(),
-            Resize(img_size, (-1, -1), dep_size),
+            Resize(img_size, (-1, -1), train_dep_size),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
             RandomHorizontalFlip(p=0.5),
             ColorJitter(
@@ -49,9 +51,11 @@ class D4DepthTrainer:
 
         val_source_dset_cfg = hcfg("dep.val_source_dataset", Dict[str, Any])
         val_target_dset_cfg = hcfg("dep.val_target_dataset", Dict[str, Any])
+        val_dep_size = hcfg("dep.val_dep_size", Tuple[int, int])
 
         val_transforms = [
             ToTensor(),
+            Resize(img_size, (-1, -1), val_dep_size),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
 
