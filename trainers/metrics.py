@@ -106,10 +106,9 @@ class IoU:
     when computing the IoU. Can be an int, or any iterable of ints.
     """
 
-    def __init__(self, num_classes, normalized=False, ignore_index=None, valid=19, **kwargs):
+    def __init__(self, num_classes, normalized=False, ignore_index=None, **kwargs):
         super().__init__()
         self.conf_metric = ConfusionMatrix(num_classes, normalized)
-        self.valid = valid
         if ignore_index is None:
             self.ignore_index = None
         elif isinstance(ignore_index, int):
@@ -172,18 +171,7 @@ class IoU:
         with np.errstate(divide="ignore", invalid="ignore"):
             iou = true_positive / (true_positive + false_positive + false_negative)
 
-        if self.valid == 13:
-            return [
-                np.nanmean(iou[[0, 1, 2, 6, 7, 8, 10, 11, 12, 13, 15, 17, 18]]),
-                iou[[0, 1, 2, 6, 7, 8, 10, 11, 12, 13, 15, 17, 18]].tolist(),
-            ]
-        if self.valid == 16:
-            return [
-                np.nanmean(iou[[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 15, 17, 18]]),
-                iou[[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 15, 17, 18]].tolist(),
-            ]
-        else:
-            return [np.nanmean(iou), iou.tolist()]
+        return [np.nanmean(iou), iou.tolist()]
 
 
 class Accuracy:

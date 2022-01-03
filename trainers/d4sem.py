@@ -108,7 +108,7 @@ class D4SemanticsTrainer:
         logdir = hcfg("sem.logdir", str)
         self.summary_writer = SummaryWriter(logdir)
 
-        self.iou = IoU(num_classes=num_classes + 1, ignore_index=ignore_index, valid=da_capire)
+        self.iou = IoU(num_classes=num_classes + 1, ignore_index=ignore_index)
 
         self.global_step = 0
 
