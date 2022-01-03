@@ -1,4 +1,4 @@
-import random
+from random import random
 from typing import Callable, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -76,6 +76,41 @@ class Resize:
         if dep is not None:
             dep.unsqueeze_(0)
             resized_dep = F.resize(dep, list(self.dep_size), self.dep_interp_mode)
+            resized_dep.squeeze_()
+
+        return resized_img, resized_sem, resized_dep
+
+
+class RandomScale(object):
+    def __init__(
+        self,
+        scale_range: Tuple[float, float],
+        img_interp_mode: InterpolationMode = InterpolationMode.LANCZOS,
+        sem_interp_mode: InterpolationMode = InterpolationMode.NEAREST,
+        dep_interp_mode: InterpolationMode = InterpolationMode.BILINEAR,
+    ) -> None:
+        self.scale_range = scale_range
+        self.img_interp_mode = img_interp_mode
+        self.sem_interp_mode = sem_interp_mode
+        self.dep_interp_mode = dep_interp_mode
+
+    def __call__(self, item: T_ITEM) -> T_ITEM:
+        img, sem, dep = item
+
+        h, w = img.shape[1], img.shape[2]
+        random_scale = self.scale_range[0] + (self.scale_range[1] - self.scale_range[0]) * random()
+        new_size = (int(h * random_scale), int(w * random_scale))
+
+        resized_img = F.resize(img, list(new_size), self.img_interp_mode)
+        resized_sem, resized_dep = None, None
+
+        if sem is not None:
+            sem.unsqueeze_(0)
+            resized_sem = F.resize(sem, list(new_size), self.sem_interp_mode)
+            resized_sem.squeeze_()
+        if dep is not None:
+            dep.unsqueeze_(0)
+            resized_dep = F.resize(dep, list(new_size), self.dep_interp_mode)
             resized_dep.squeeze_()
 
         return resized_img, resized_sem, resized_dep
