@@ -13,6 +13,9 @@ T_SAMPLE = Tuple[Image.Image, Optional[np.ndarray], Optional[np.ndarray]]
 T_ITEM = Tuple[Tensor, Optional[Tensor], Optional[Tensor]]
 T_TRANSFORM = Callable[[T_ITEM], T_ITEM]
 
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.225, 0.224]
+
 
 class Compose:
     def __init__(self, transforms: List[T_TRANSFORM]):
@@ -49,29 +52,30 @@ class Resize:
         img_size: Tuple[int, int],
         sem_size: Tuple[int, int],
         dep_size: Tuple[int, int],
-        interpolation: InterpolationMode = InterpolationMode.BILINEAR,
+        img_interp_mode: InterpolationMode = InterpolationMode.LANCZOS,
+        sem_interp_mode: InterpolationMode = InterpolationMode.NEAREST,
+        dep_interp_mode: InterpolationMode = InterpolationMode.BILINEAR,
     ):
         self.img_size = img_size
+        self.img_interp_mode = img_interp_mode
         self.sem_size = sem_size
+        self.sem_interp_mode = sem_interp_mode
         self.dep_size = dep_size
-        self.interpolation = interpolation
+        self.dep_interp_mode = dep_interp_mode
 
     def __call__(self, item: T_ITEM) -> T_ITEM:
         img, sem, dep = item
 
-        resized_img = F.resize(img, list(self.img_size), self.interpolation)
+        resized_img = F.resize(img, list(self.img_size), self.img_interp_mode)
         resized_sem, resized_dep = None, None
+
         if sem is not None:
             sem.unsqueeze_(0)
-            resized_sem = F.resize(
-                sem,
-                list(self.sem_size),
-                interpolation=InterpolationMode.NEAREST,
-            )
+            resized_sem = F.resize(sem, list(self.sem_size), self.sem_interp_mode)
             resized_sem.squeeze_()
         if dep is not None:
             dep.unsqueeze_(0)
-            resized_dep = F.resize(dep, list(self.dep_size), interpolation=self.interpolation)
+            resized_dep = F.resize(dep, list(self.dep_size), self.dep_interp_mode)
             resized_dep.squeeze_()
 
         return resized_img, resized_sem, resized_dep
