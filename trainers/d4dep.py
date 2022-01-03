@@ -103,11 +103,13 @@ class D4DepthTrainer:
         logdir = hcfg("dep.logdir", str)
         self.summary_writer = SummaryWriter(logdir)
 
+        self.rmse = RMSE(min_depth=self.dep_range[0], max_depth=self.dep_range[1])
+
         self.global_step = 0
 
     def train(self) -> None:
         for epoch in range(self.num_epochs):
-            rmse = RMSE(min_depth=self.dep_range[0], max_depth=self.dep_range[1])
+            self.rmse.reset()
 
             for batch in tqdm(self.train_loader, f"Epoch {epoch}/{self.num_epochs}"):
                 images, labels, _ = batch
@@ -128,11 +130,11 @@ class D4DepthTrainer:
                 self.optimizer.step()
                 self.lr_scheduler.step()
 
-                rmse.add(pred.detach(), labels)
+                self.rmse.add(pred.detach(), labels)
 
                 self.global_step += 1
 
-            train_rmse = rmse.value()[0]
+            train_rmse = self.rmse.value()[0]
             self.summary_writer.add_scalar("train/rmse", train_rmse, self.global_step)
 
             val_source_rmse = self.val("source")
@@ -144,7 +146,8 @@ class D4DepthTrainer:
     @torch.no_grad()
     def val(self, dataset: str) -> float:
         loader = self.val_source_loader if dataset == "source" else self.val_target_loader
-        rmse = RMSE(min_depth=self.dep_range[0], max_depth=self.dep_range[1])
+
+        self.rmse.reset()
 
         for batch in tqdm(loader, f"Validating on {dataset}"):
             images, labels, _ = batch
@@ -155,6 +158,6 @@ class D4DepthTrainer:
             h, w = labels.shape[2], labels.shape[3]
             pred = F.interpolate(pred, size=(h, w), mode="bilinear", align_corners=True)
 
-            rmse.add(pred.detach(), labels)
+            self.rmse.add(pred.detach(), labels)
 
-        return rmse.value()[0]
+        return self.rmse.value()[0]

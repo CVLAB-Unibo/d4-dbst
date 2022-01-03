@@ -7,3 +7,15 @@ dep:
   lr: 1e-3
   num_epochs: 100
   logdir: "logs/d4dep"
+
+sem:
+  train_dataset: "@BASE(dataset)"
+  val_source_dataset: "@BASE(dataset)"
+  val_target_dataset: "@BASE(dataset)"
+  train_bs: 8
+  val_bs: 8
+  lr: 1e-3
+  num_epochs: 100
+  logdir: "logs/d4sem"
+  num_classes: 19
+  ignore_index: 19
