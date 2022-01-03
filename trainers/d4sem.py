@@ -100,8 +100,8 @@ class D4SemanticsTrainer:
         ignore_index = hcfg("sem.ignore_index", int)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=ignore_index)
 
-        logdir = hcfg("sem.logdir", str)
-        self.summary_writer = SummaryWriter(logdir)
+        self.logdir = hcfg("sem.logdir", str)
+        self.summary_writer = SummaryWriter(self.logdir + "/tensorboard")
 
         self.iou = IoU(num_classes=num_classes + 1, ignore_index=ignore_index)
 
@@ -143,6 +143,10 @@ class D4SemanticsTrainer:
 
             val_target_miou = self.val("target")
             self.summary_writer.add_scalar("val_target/miou", val_target_miou, self.global_step)
+
+        ckpt_path = self.logdir + "ckpt.pt"
+        ckpt = {"model": self.model}
+        torch.save(ckpt, ckpt_path)
 
     @torch.no_grad()
     def val(self, dataset: str) -> float:

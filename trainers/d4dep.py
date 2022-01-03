@@ -99,8 +99,8 @@ class D4DepthTrainer:
         self.dep_range = hcfg("dep.train_dataset.dep_range", Tuple[float, float])
         self.loss_fn = MaskedL1Loss(self.dep_range[1])
 
-        logdir = hcfg("dep.logdir", str)
-        self.summary_writer = SummaryWriter(logdir)
+        self.logdir = hcfg("dep.logdir", str)
+        self.summary_writer = SummaryWriter(self.logdir + "/tensorboard")
 
         self.rmse = RMSE(min_depth=self.dep_range[0], max_depth=self.dep_range[1])
 
@@ -141,6 +141,10 @@ class D4DepthTrainer:
 
             val_target_rmse = self.val("target")
             self.summary_writer.add_scalar("val_target/rmse", val_target_rmse, self.global_step)
+
+        ckpt_path = self.logdir + "ckpt.pt"
+        ckpt = {"model": self.model}
+        torch.save(ckpt, ckpt_path)
 
     @torch.no_grad()
     def val(self, dataset: str) -> float:
