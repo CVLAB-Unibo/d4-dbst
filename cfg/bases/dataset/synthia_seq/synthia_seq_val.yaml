@@ -1,5 +1,0 @@
-input_file: "input_files/synthia_seq_val.txt"
-sem: true
-sem_map: "synthiaseq12"
-sem_cmap: "cmap12"
-dep: false

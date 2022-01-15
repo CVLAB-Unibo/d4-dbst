@@ -79,7 +79,7 @@ class D4TransferTrainer:
             collate_fn=Dataset.collate_fn,
         )
 
-        num_classes = hcfg("num_classes", int)
+        num_classes = hcfg("sem.train_dataset.sem_num_classes", int)
 
         model_dep = Res_Deeplab(num_classes=1, use_sigmoid=True).cuda()
         dep_ckpt_path = hcfg("transfer.dep_ckpt_path", str)
@@ -116,7 +116,7 @@ class D4TransferTrainer:
             div_factor=20,
         )
 
-        ignore_index = hcfg("transfer.ignore_index", int)
+        ignore_index = hcfg("sem.train_dataset.sem_ignore_idx", int)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=ignore_index)
 
         self.logdir = hcfg("transfer.logdir", str)

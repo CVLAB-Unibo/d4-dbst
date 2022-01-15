@@ -38,6 +38,7 @@ class Dataset(TorchDataset, ABC):
         self.sem = cfg["sem"]
         if self.sem:
             self.sem_map = get_semantic_map(cfg["sem_map"])
+            self.sem_ignore_idx = cfg["sem_ignore_idx"]
             self.sem_cmap = get_cmap(cfg["sem_cmap"])
 
         self.dep = cfg["dep"]
@@ -50,6 +51,7 @@ class Dataset(TorchDataset, ABC):
     def encode_sem(self, sem_img: Image.Image) -> np.ndarray:
         sem = np.array(sem_img)
         sem_copy = sem.copy()
+        sem_copy = self.sem_ignore_idx * np.ones(sem_copy.shape, dtype=np.float32)
         for k, v in self.sem_map.items():
             sem_copy[sem == k] = v
         return sem_copy
