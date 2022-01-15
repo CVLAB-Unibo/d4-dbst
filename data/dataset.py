@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import torch
 from PIL import Image
-from torch.functional import Tensor
+from torch import Tensor
 from torch.utils.data.dataset import Dataset as TorchDataset
 
 from data.colormap import get_cmap
@@ -38,7 +38,7 @@ class Dataset(TorchDataset, ABC):
         self.sem = cfg["sem"]
         if self.sem:
             self.sem_map = get_semantic_map(cfg["sem_map"])
-            self.sem_ignore_idx = cfg["sem_ignore_idx"]
+            self.sem_ignore_index = cfg["sem_ignore_index"]
             self.sem_cmap = get_cmap(cfg["sem_cmap"])
 
         self.dep = cfg["dep"]
@@ -51,10 +51,20 @@ class Dataset(TorchDataset, ABC):
     def encode_sem(self, sem_img: Image.Image) -> np.ndarray:
         sem = np.array(sem_img)
         sem_copy = sem.copy()
-        sem_copy = self.sem_ignore_idx * np.ones(sem_copy.shape, dtype=np.float32)
+        sem_copy = self.sem_ignore_index * np.ones(sem_copy.shape, dtype=np.float32)
         for k, v in self.sem_map.items():
             sem_copy[sem == k] = v
         return sem_copy
+
+    def get_dep_img(self, dep: Tensor) -> np.ndarray:
+        inv_dep = 1 / dep
+        norm_dep = (inv_dep - inv_dep.min()) / (inv_dep.max() - inv_dep.min())
+        colored_dep = self.dep_cmap(np.array(norm_dep))
+        return colored_dep[..., :3]
+
+    def get_sem_img(self, sem: Tensor) -> np.ndarray:
+        colored_sem = self.sem_cmap(np.array(sem))
+        return colored_sem[..., :3]
 
     def __getitem__(self, index: int) -> ITEM_T:
         image_path, sem_path, dep_path = self.samples[index]

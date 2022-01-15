@@ -309,22 +309,19 @@ class MAE(MSE):
 class RMSE(MSE):
     def add(self, predicted, target):
         # If target and/or predicted are tensors, convert them to numpy arrays
-        if torch.is_tensor(predicted):
-            predicted = predicted.cpu().numpy()
-        if torch.is_tensor(target):
-            target = target.cpu().numpy()
+        pred = predicted.cpu().numpy().copy()
+        tgt = target.cpu().numpy().copy()
 
-        predicted = predicted.squeeze(axis=1)
-        predicted = predicted * self.max_depth
-        predicted[predicted < self.min_depth] = self.min_depth
-        predicted[predicted > self.max_depth] = self.max_depth
-        mask = (target > self.min_depth) & (target < self.max_depth)
+        pred = pred * self.max_depth
+        pred[pred < self.min_depth] = self.min_depth
+        pred[pred > self.max_depth] = self.max_depth
+        mask = (tgt > self.min_depth) & (tgt < self.max_depth)
 
         # set elements that we do not want to count to 0 so that error is 0
-        predicted[~mask] = 1
-        target[~mask] = 1
+        pred[~mask] = 1
+        tgt[~mask] = 1
 
-        norms = np.sum((predicted - target) ** 2, axis=(1, 2)) / np.maximum(
+        norms = np.sum((pred - tgt) ** 2, axis=(1, 2)) / np.maximum(
             np.sum(mask, axis=(1, 2)), self.eps
         )
         norms = np.sqrt(norms)
@@ -333,7 +330,7 @@ class RMSE(MSE):
         # take invalid targets. a target is invalid if all the elements of its mask all set to 0.
         num_invalids = np.sum(np.all(mask == 0, axis=(1, 2)))
         # invalid mask should not be counted when computing mean
-        self._num_examples += predicted.shape[0] - num_invalids
+        self._num_examples += pred.shape[0] - num_invalids
 
     def value(self):
         error = self.errors / self._num_examples

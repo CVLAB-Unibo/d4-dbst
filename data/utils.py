@@ -17,6 +17,6 @@ def denormalize(img: np.ndarray, mean: Sequence[float], std: Sequence[float]) ->
     denorm_img = img
     if len(denorm_img.shape) > 3:
         denorm_img = denorm_img.squeeze()
-    denorm_img = img * std
-    denorm_img = denorm_img + mean
+    denorm_img = img * np.array(std).reshape(3, 1, 1)
+    denorm_img = denorm_img + np.array(mean).reshape(3, 1, 1)
     return (denorm_img * 255).astype(np.uint8)

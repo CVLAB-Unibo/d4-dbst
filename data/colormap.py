@@ -2,22 +2,6 @@ import numpy as np
 from matplotlib import cm
 from matplotlib.colors import Colormap, ListedColormap
 
-cmap12 = [
-    (70, 130, 180),  # sky
-    (70, 70, 70),  # building
-    (128, 64, 128),  # road
-    (244, 35, 232),  # sidewalk
-    (190, 153, 153),  # fence
-    (107, 142, 35),  # vegetation
-    (153, 153, 153),  # pole
-    (0, 0, 142),  # car
-    (220, 220, 0),  # traffic sign
-    (220, 20, 60),  # person
-    (119, 11, 32),  # bicycle
-    (250, 170, 30),  # traffic light
-    (0, 0, 0),  # unknown
-]
-
 cmap19 = [
     (128, 64, 128),  # road
     (244, 35, 232),  # sidewalk
@@ -46,7 +30,7 @@ def get_cmap(name: str) -> Colormap:
     try:
         cmap = cm.get_cmap(name)
     except ValueError:
-        cmaps = {"cmap12": cmap12, "cmap19": cmap19}
+        cmaps = {"cmap19": cmap19}
         cmap = ListedColormap(np.array(cmaps[name], dtype=np.float32) / 255)
 
     return cmap

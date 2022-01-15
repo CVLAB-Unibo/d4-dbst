@@ -1,8 +1,9 @@
 from typing import Any, Dict, Tuple
 
+import numpy as np
 import torch
 import torch.nn.functional as F
-from hesiod import hcfg
+from hesiod import get_out_dir, hcfg
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils import model_zoo
@@ -12,7 +13,8 @@ from tqdm import tqdm
 
 from data.dataset import Dataset
 from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, Normalize
-from data.transforms import RandomHorizontalFlip, Resize, ToTensor
+from data.transforms import RandomHorizontalFlip, Resize
+from data.utils import denormalize
 from models.deeplab import Res_Deeplab
 from trainers.losses import MaskedL1Loss
 from trainers.metrics import RMSE
@@ -25,19 +27,18 @@ class D4DepthTrainer:
         train_dep_size = hcfg("dep.train_dep_size", Tuple[int, int])
 
         train_transforms = [
-            ToTensor(),
             Resize(img_size, (-1, -1), train_dep_size),
+            # ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
             RandomHorizontalFlip(p=0.5),
-            ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
         ]
 
         train_transform = Compose(train_transforms)
-        train_dset = Dataset(train_dset_cfg, train_transform)
+        self.train_dset = Dataset(train_dset_cfg, train_transform)
 
         train_bs = hcfg("dep.train_bs", int)
         self.train_loader = DataLoader(
-            train_dset,
+            self.train_dset,
             train_bs,
             shuffle=True,
             num_workers=8,
@@ -49,25 +50,24 @@ class D4DepthTrainer:
         val_dep_size = hcfg("dep.val_dep_size", Tuple[int, int])
 
         val_transforms = [
-            ToTensor(),
             Resize(img_size, (-1, -1), val_dep_size),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
 
         val_transform = Compose(val_transforms)
 
-        val_source_dset = Dataset(val_source_dset_cfg, val_transform)
-        val_target_dset = Dataset(val_target_dset_cfg, val_transform)
+        self.val_source_dset = Dataset(val_source_dset_cfg, val_transform)
+        self.val_target_dset = Dataset(val_target_dset_cfg, val_transform)
 
         val_bs = hcfg("dep.val_bs", int)
         self.val_source_loader = DataLoader(
-            val_source_dset,
+            self.val_source_dset,
             val_bs,
             num_workers=8,
             collate_fn=Dataset.collate_fn,
         )
         self.val_target_loader = DataLoader(
-            val_target_dset,
+            self.val_target_dset,
             val_bs,
             num_workers=8,
             collate_fn=Dataset.collate_fn,
@@ -99,8 +99,7 @@ class D4DepthTrainer:
         self.dep_range = hcfg("dep.train_dataset.dep_range", Tuple[float, float])
         self.loss_fn = MaskedL1Loss(self.dep_range[1])
 
-        self.logdir = hcfg("dep.logdir", str)
-        self.summary_writer = SummaryWriter(self.logdir + "/tensorboard")
+        self.summary_writer = SummaryWriter(get_out_dir() / "d4dep/tensorboard")
 
         self.rmse = RMSE(min_depth=self.dep_range[0], max_depth=self.dep_range[1])
 
@@ -111,18 +110,38 @@ class D4DepthTrainer:
             self.rmse.reset()
 
             for batch in tqdm(self.train_loader, f"Epoch {epoch}/{self.num_epochs}"):
-                images, labels, _ = batch
+                images, _, labels = batch
                 images = images.cuda()
                 labels = labels.cuda()
 
                 pred = self.model(images)
-                h, w = labels.shape[2], labels.shape[3]
+                h, w = labels.shape[1], labels.shape[2]
                 pred = F.interpolate(pred, size=(h, w), mode="bilinear", align_corners=True)
+                pred = pred.squeeze(1)
 
                 loss = self.loss_fn(pred, labels)
 
-                if self.global_step % 100 == 99:
+                if self.global_step % 100 == 0:
                     self.summary_writer.add_scalar("train/loss", loss.item(), self.global_step)
+
+                    img = np.array(images[0].detach().cpu())
+                    img = denormalize(img, IMAGENET_MEAN, IMAGENET_STD)
+                    dep_img_gt = self.train_dset.get_dep_img(labels[0].detach().cpu())
+                    dep_img_pred = self.train_dset.get_dep_img(pred[0].detach().cpu())
+
+                    self.summary_writer.add_image("train/image", img, self.global_step)
+                    self.summary_writer.add_image(
+                        "train/gt",
+                        dep_img_gt,
+                        self.global_step,
+                        dataformats="HWC",
+                    )
+                    self.summary_writer.add_image(
+                        "train/pred",
+                        dep_img_pred,
+                        self.global_step,
+                        dataformats="HWC",
+                    )
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -153,14 +172,34 @@ class D4DepthTrainer:
         self.rmse.reset()
 
         for batch in tqdm(loader, f"Validating on {dataset}"):
-            images, labels, _ = batch
+            images, _, labels = batch
             images = images.cuda()
             labels = labels.cuda()
 
             pred = self.model(images)
-            h, w = labels.shape[2], labels.shape[3]
+            h, w = labels.shape[1], labels.shape[2]
             pred = F.interpolate(pred, size=(h, w), mode="bilinear", align_corners=True)
+            pred = pred.squeeze(1)
 
             self.rmse.add(pred.detach(), labels)
+
+        img = np.array(images[0].detach().cpu())
+        img = denormalize(img, IMAGENET_MEAN, IMAGENET_STD)
+        dep_img_gt = self.val_source_dset.get_dep_img(labels[0].detach().cpu())
+        dep_img_pred = self.val_source_dset.get_dep_img(pred[0].detach().cpu())
+
+        self.summary_writer.add_image(f"val_{dataset}/image", img, self.global_step)
+        self.summary_writer.add_image(
+            f"val_{dataset}/gt",
+            dep_img_gt,
+            self.global_step,
+            dataformats="HWC",
+        )
+        self.summary_writer.add_image(
+            f"val_{dataset}/pred",
+            dep_img_pred,
+            self.global_step,
+            dataformats="HWC",
+        )
 
         return self.rmse.value()[0]

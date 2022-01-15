@@ -7,4 +7,6 @@ sem_cmap: "cmap19"
 sem_num_classes: 19
 sem_ignore_index: 19
 
-dep: false
+dep: true
+dep_range: !!python/tuple [0.01, 60]
+dep_cmap: "plasma"

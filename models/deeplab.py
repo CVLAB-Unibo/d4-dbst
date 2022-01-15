@@ -219,34 +219,27 @@ class ResNet(nn.Module):
         requires_grad is set to False in deeplab_resnet.py, therefore this function does not return
         any batchnorm parameter
         """
-        b = []
+        layers = [
+            self.conv1,
+            self.bn1,
+            self.layer1,
+            self.layer2,
+            self.layer3,
+            self.layer4,
+        ]
 
-        b.append(self.conv1)
-        b.append(self.bn1)
-        b.append(self.layer1)
-        b.append(self.layer2)
-        b.append(self.layer3)
-        b.append(self.layer4)
-
-        for i in range(len(b)):
-            for j in b[i].modules():
-                jj = 0
-                for k in j.parameters():
-                    jj += 1
-                    if k.requires_grad:
-                        yield k
+        for layer in layers:
+            for params in layer.parameters():
+                if params.requires_grad:
+                    yield params
 
     def get_10x_lr_params(self):
         """
         This generator returns all the parameters for the last layer of the net,
         which does the classification of pixel into classes
         """
-        b = []
-        b.append(self.layer5.parameters())
-
-        for j in range(len(b)):
-            for i in b[j]:
-                yield i
+        for params in self.layer5.parameters():
+            yield params
 
     def optim_parameters(self, lr):
         return [

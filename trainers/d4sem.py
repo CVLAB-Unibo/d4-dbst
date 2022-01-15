@@ -2,7 +2,7 @@ from typing import Any, Dict, Tuple
 
 import torch
 import torch.nn.functional as F
-from hesiod import hcfg
+from hesiod import get_out_dir, hcfg
 from torch import nn
 from torch.optim import SGD
 from torch.optim.lr_scheduler import OneCycleLR
@@ -97,11 +97,10 @@ class D4SemanticsTrainer:
             div_factor=20,
         )
 
-        ignore_index = hcfg("sem.train_dataset.sem_ignore_idx", int)
+        ignore_index = hcfg("sem.train_dataset.sem_ignore_index", int)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=ignore_index)
 
-        self.logdir = hcfg("sem.logdir", str)
-        self.summary_writer = SummaryWriter(self.logdir + "/tensorboard")
+        self.summary_writer = SummaryWriter(get_out_dir() / "d4sem/tensorboard")
 
         self.iou = IoU(num_classes=num_classes + 1, ignore_index=ignore_index)
 

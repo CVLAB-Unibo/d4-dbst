@@ -1,4 +1,3 @@
-from random import random
 from typing import Callable, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -36,7 +35,7 @@ class RandomHorizontalFlip:
     def __call__(self, item: T_ITEM) -> T_ITEM:
         img, sem, dep = item
 
-        if random.random() < self.p:
+        if torch.rand(1) < self.p:
             img = F.hflip(img)
             if sem is not None:
                 sem = F.hflip(sem)
@@ -52,7 +51,7 @@ class Resize:
         img_size: Tuple[int, int],
         sem_size: Tuple[int, int],
         dep_size: Tuple[int, int],
-        img_interp_mode: InterpolationMode = InterpolationMode.LANCZOS,
+        img_interp_mode: InterpolationMode = InterpolationMode.BICUBIC,
         sem_interp_mode: InterpolationMode = InterpolationMode.NEAREST,
         dep_interp_mode: InterpolationMode = InterpolationMode.BILINEAR,
     ):
@@ -85,7 +84,7 @@ class RandomScale(object):
     def __init__(
         self,
         scale_range: Tuple[float, float],
-        img_interp_mode: InterpolationMode = InterpolationMode.LANCZOS,
+        img_interp_mode: InterpolationMode = InterpolationMode.BICUBIC,
         sem_interp_mode: InterpolationMode = InterpolationMode.NEAREST,
         dep_interp_mode: InterpolationMode = InterpolationMode.BILINEAR,
     ) -> None:
@@ -98,7 +97,8 @@ class RandomScale(object):
         img, sem, dep = item
 
         h, w = img.shape[1], img.shape[2]
-        random_scale = self.scale_range[0] + (self.scale_range[1] - self.scale_range[0]) * random()
+        random = torch.rand(1).item()
+        random_scale = self.scale_range[0] + (self.scale_range[1] - self.scale_range[0]) * random
         new_size = (int(h * random_scale), int(w * random_scale))
 
         resized_img = F.resize(img, list(new_size), self.img_interp_mode)
@@ -131,8 +131,8 @@ class RandomCrop:
         if in_size <= out_size:
             return 0, 0, ih, iw
 
-        i = random.randint(0, ih - oh)
-        j = random.randint(0, iw - ow)
+        i = int(torch.randint(ih - oh, (1,)).item())
+        j = int(torch.randint(iw - ow, (1,)).item())
         return i, j, oh, ow
 
     def __call__(self, item: T_ITEM) -> T_ITEM:

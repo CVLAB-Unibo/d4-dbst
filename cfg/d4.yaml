@@ -5,11 +5,10 @@ dep:
   img_size: !!python/tuple [512, 1024]
   train_dep_size: !!python/tuple [512, 1024]
   val_dep_size: !!python/tuple [1024, 2048]
-  train_bs: 8
-  val_bs: 8
-  lr: 1e-3
-  num_epochs: 100
-  logdir: "logs/d4dep"
+  train_bs: 2
+  val_bs: 2
+  lr: 1e-4
+  num_epochs: 70
 
 sem:
   train_dataset: "@BASE(dataset)"
@@ -18,11 +17,10 @@ sem:
   img_size: !!python/tuple [512, 1024]
   train_sem_size: !!python/tuple [512, 1024]
   val_sem_size: !!python/tuple [1024, 2048]
-  train_bs: 8
-  val_bs: 8
+  train_bs: 2
+  val_bs: 2
   lr: 1e-3
   num_epochs: 100
-  logdir: "logs/d4sem"
 
 transfer:
   train_dataset: "@BASE(dataset)"
@@ -31,11 +29,10 @@ transfer:
   img_size: !!python/tuple [512, 1024]
   train_sem_size: !!python/tuple [512, 1024]
   val_sem_size: !!python/tuple [1024, 2048]
-  train_bs: 8
-  val_bs: 8
+  train_bs: 2
+  val_bs: 2
   lr: 1e-3
   num_epochs: 100
-  logdir: "logs/d4transfer"
   num_classes: 19
   ignore_index: 19
   dep_ckpt_path: logs/d4dep/ckpt.pt

@@ -92,7 +92,7 @@ class D4SemanticsTrainer:
             div_factor=20,
         )
 
-        ignore_index = hcfg("sem.train_dataset.sem_ignore_idx", int)
+        ignore_index = hcfg("sem.train_dataset.sem_ignore_index", int)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=ignore_index)
 
         self.logdir = hcfg("logdir", str)
