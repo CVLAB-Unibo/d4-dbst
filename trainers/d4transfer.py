@@ -169,7 +169,7 @@ class D4TransferTrainer:
     def train(self) -> None:
         for epoch in range(self.num_epochs):
 
-            for batch in tqdm(self.train_loader, f"Epoch {epoch}/{self.num_epochs}"):
+            for batch in tqdm(self.train_loader, f"Epoch {epoch}/{self.num_epochs}", ncols=60):
                 images, labels, _ = batch
                 images = images.cuda()
                 labels = labels.cuda()
@@ -233,7 +233,7 @@ class D4TransferTrainer:
 
         self.iou.reset()
 
-        for batch in tqdm(loader, f"Validating on {dataset}"):
+        for batch in tqdm(loader, f"Validating on {dataset}", ncols=60):
             images, labels, _ = batch
             images = images.cuda()
             labels = labels.cuda()

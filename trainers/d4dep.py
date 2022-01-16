@@ -147,7 +147,7 @@ class D4DepthTrainer:
         for epoch in range(self.num_epochs):
             self.rmse.reset()
 
-            for batch in tqdm(self.train_loader, f"Epoch {epoch}/{self.num_epochs}"):
+            for batch in tqdm(self.train_loader, f"Epoch {epoch}/{self.num_epochs}", ncols=60):
                 images, _, labels = batch
                 images = images.cuda()
                 labels = labels.cuda()
@@ -209,7 +209,7 @@ class D4DepthTrainer:
 
         self.rmse.reset()
 
-        for batch in tqdm(loader, f"Validating on {dataset}"):
+        for batch in tqdm(loader, f"Validating on {dataset}", ncols=60):
             images, _, labels = batch
             images = images.cuda()
             labels = labels.cuda()
