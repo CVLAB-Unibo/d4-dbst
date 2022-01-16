@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, Dict, Tuple
 
 import torch
@@ -20,9 +21,15 @@ from trainers.metrics import IoU
 
 class D4SemanticsTrainer:
     def __init__(self) -> None:
-        train_dset_cfg = hcfg("sem.train_dataset", Dict[str, Any])
         img_size = hcfg("sem.img_size", Tuple[int, int])
+        sem_cmap = hcfg("sem.sem_cmap", str)
+        sem_num_classes = hcfg("sem.sem_num_classes", int)
+        sem_ignore_index = hcfg("sem.sem_ignore_index", int)
+
+        train_dset_root = Path(hcfg("sem.train_dataset.root", str))
+        train_input_file = Path(hcfg("sem.train_dataset.input_file", str))
         train_sem_size = hcfg("sem.train_sem_size", Tuple[int, int])
+        train_sem_map = hcfg("sem.train_dataset.sem_map", str)
 
         train_transforms = [
             ToTensor(),
@@ -33,7 +40,18 @@ class D4SemanticsTrainer:
         ]
 
         train_transform = Compose(train_transforms)
-        train_dset = Dataset(train_dset_cfg, train_transform)
+        train_dset = Dataset(
+            train_dset_root,
+            train_input_file,
+            True,
+            train_sem_map,
+            sem_ignore_index,
+            sem_cmap,
+            False,
+            (-1, -1),
+            "",
+            train_transform,
+        )
 
         train_bs = hcfg("sem.train_bs", int)
         self.train_loader = DataLoader(
@@ -44,8 +62,12 @@ class D4SemanticsTrainer:
             collate_fn=Dataset.collate_fn,
         )
 
-        val_source_dset_cfg = hcfg("sem.val_source_dataset", Dict[str, Any])
-        val_target_dset_cfg = hcfg("sem.val_target_dataset", Dict[str, Any])
+        val_source_dset_root = Path(hcfg("sem.val_source_dataset.root", str))
+        val_source_input_file = Path(hcfg("sem.val_source_dataset.input_file", str))
+        val_source_sem_map = hcfg("sem.val_source_dataset.sem_map", str)
+        val_target_dset_root = Path(hcfg("sem.val_target_dataset.root", str))
+        val_target_input_file = Path(hcfg("sem.val_target_dataset.input_file", str))
+        val_target_sem_map = hcfg("sem.val_target_dataset.sem_map", str)
         val_sem_size = hcfg("sem.val_sem_size", Tuple[int, int])
 
         val_transforms = [
@@ -56,8 +78,30 @@ class D4SemanticsTrainer:
 
         val_transform = Compose(val_transforms)
 
-        val_source_dset = Dataset(val_source_dset_cfg, val_transform)
-        val_target_dset = Dataset(val_target_dset_cfg, val_transform)
+        val_source_dset = Dataset(
+            val_source_dset_root,
+            val_source_input_file,
+            True,
+            val_source_sem_map,
+            sem_ignore_index,
+            sem_cmap,
+            False,
+            (-1, -1),
+            "",
+            val_transform,
+        )
+        val_target_dset = Dataset(
+            val_target_dset_root,
+            val_target_input_file,
+            True,
+            val_target_sem_map,
+            sem_ignore_index,
+            sem_cmap,
+            False,
+            (-1, -1),
+            "",
+            val_transform,
+        )
 
         val_bs = hcfg("sem.val_bs", int)
         self.val_source_loader = DataLoader(
@@ -73,8 +117,7 @@ class D4SemanticsTrainer:
             collate_fn=Dataset.collate_fn,
         )
 
-        num_classes = hcfg("sem.train_dataset.sem_num_classes", int)
-        self.model = Res_Deeplab(num_classes=num_classes).cuda()
+        self.model = Res_Deeplab(num_classes=sem_num_classes).cuda()
         self.model.eval()
 
         url = "https://download.pytorch.org/models/resnet50-19c8e357.pth"
@@ -97,13 +140,11 @@ class D4SemanticsTrainer:
             div_factor=20,
         )
 
-        ignore_index = hcfg("sem.train_dataset.sem_ignore_index", int)
-        self.loss_fn = nn.CrossEntropyLoss(ignore_index=ignore_index)
+        self.loss_fn = nn.CrossEntropyLoss(ignore_index=sem_ignore_index)
+        self.iou = IoU(num_classes=sem_num_classes + 1, ignore_index=sem_ignore_index)
 
-        self.summary_writer = SummaryWriter(get_out_dir() / "d4sem/tensorboard")
-
-        self.iou = IoU(num_classes=num_classes + 1, ignore_index=ignore_index)
-
+        self.logdir = get_out_dir() / "d4sem"
+        self.summary_writer = SummaryWriter(self.logdir / "tensorboard")
         self.global_step = 0
 
     def train(self) -> None:
@@ -143,7 +184,7 @@ class D4SemanticsTrainer:
             val_target_miou = self.val("target")
             self.summary_writer.add_scalar("val_target/miou", val_target_miou, self.global_step)
 
-        ckpt_path = self.logdir + "ckpt.pt"
+        ckpt_path = self.logdir / "ckpt.pt"
         ckpt = {"model": self.model}
         torch.save(ckpt, ckpt_path)
 

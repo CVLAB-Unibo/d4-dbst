@@ -1,10 +1,2 @@
 root: "/media/data2/ldeluigi/datasets"
 input_file: "input_files/mixed_cs_gta_train.txt"
-
-sem: false
-sem_map: "none"
-sem_cmap: "none"
-
-dep: true
-dep_range: !!python/tuple [0.01, 60]
-dep_cmap: "plasma"

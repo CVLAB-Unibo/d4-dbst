@@ -1,6 +1,6 @@
 from abc import ABC
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -18,33 +18,43 @@ ITEM_T = Tuple[Tensor, Optional[Tensor], Optional[Tensor]]
 
 
 class Dataset(TorchDataset, ABC):
-    def __init__(self, cfg: Dict[str, Any], transform: Compose) -> None:
+    def __init__(
+        self,
+        root: Path,
+        input_file: Path,
+        sem: bool,
+        sem_map: str,
+        sem_ignore_index: int,
+        sem_cmap: str,
+        dep: bool,
+        dep_range: Tuple[float, float],
+        dep_cmap: str,
+        transform: Compose,
+    ) -> None:
         TorchDataset.__init__(self)
         ABC.__init__(self)
 
-        root = Path(cfg["root"])
-        input_file = cfg["input_file"]
         self.samples: List[SAMPLE_T] = []
 
         with open(input_file, "rt") as f:
             lines = [line.strip() for line in f.readlines()]
             for line in lines:
                 splits = line.split(";")
-                image = root / Path(splits[0].strip())
-                sem = root / Path(splits[1].strip())
-                dep = root / Path(splits[2].strip())
-                self.samples.append((image, sem, dep))
+                image_path = root / Path(splits[0].strip())
+                sem_path = root / Path(splits[1].strip())
+                dep_path = root / Path(splits[2].strip())
+                self.samples.append((image_path, sem_path, dep_path))
 
-        self.sem = cfg["sem"]
+        self.sem = sem
         if self.sem:
-            self.sem_map = get_semantic_map(cfg["sem_map"])
-            self.sem_ignore_index = cfg["sem_ignore_index"]
-            self.sem_cmap = get_cmap(cfg["sem_cmap"])
+            self.sem_map = get_semantic_map(sem_map)
+            self.sem_ignore_index = sem_ignore_index
+            self.sem_cmap = get_cmap(sem_cmap)
 
-        self.dep = cfg["dep"]
+        self.dep = dep
         if self.dep:
-            self.dep_min, self.dep_max = cfg["dep_range"]
-            self.dep_cmap = get_cmap(cfg["dep_cmap"])
+            self.dep_min, self.dep_max = dep_range
+            self.dep_cmap = get_cmap(dep_cmap)
 
         self.transform = transform
 

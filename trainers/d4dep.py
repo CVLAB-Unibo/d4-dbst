@@ -1,4 +1,5 @@
-from typing import Any, Dict, Tuple
+from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -22,8 +23,12 @@ from trainers.metrics import RMSE
 
 class D4DepthTrainer:
     def __init__(self) -> None:
-        train_dset_cfg = hcfg("dep.train_dataset", Dict[str, Any])
         img_size = hcfg("dep.img_size", Tuple[int, int])
+        dep_range = hcfg("dep.dep_range", Tuple[float, float])
+        dep_cmap = hcfg("dep.dep_cmap", str)
+
+        train_dset_root = Path(hcfg("dep.train_dataset.root", str))
+        train_input_file = Path(hcfg("dep.train_dataset.input_file", str))
         train_dep_size = hcfg("dep.train_dep_size", Tuple[int, int])
 
         train_transforms = [
@@ -32,9 +37,20 @@ class D4DepthTrainer:
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
             RandomHorizontalFlip(p=0.5),
         ]
-
         train_transform = Compose(train_transforms)
-        self.train_dset = Dataset(train_dset_cfg, train_transform)
+
+        self.train_dset = Dataset(
+            train_dset_root,
+            train_input_file,
+            False,
+            "",
+            -1,
+            "",
+            True,
+            dep_range,
+            dep_cmap,
+            train_transform,
+        )
 
         train_bs = hcfg("dep.train_bs", int)
         self.train_loader = DataLoader(
@@ -45,19 +61,43 @@ class D4DepthTrainer:
             collate_fn=Dataset.collate_fn,
         )
 
-        val_source_dset_cfg = hcfg("dep.val_source_dataset", Dict[str, Any])
-        val_target_dset_cfg = hcfg("dep.val_target_dataset", Dict[str, Any])
+        val_source_dset_root = Path(hcfg("dep.val_source_dataset.root", str))
+        val_source_input_file = Path(hcfg("dep.val_source_dataset.input_file", str))
+        val_target_dset_root = Path(hcfg("dep.val_target_dataset.root", str))
+        val_target_input_file = Path(hcfg("dep.val_target_dataset.input_file", str))
         val_dep_size = hcfg("dep.val_dep_size", Tuple[int, int])
 
         val_transforms = [
-            Resize(img_size, (-1, -1), val_dep_size),
+            Resize(img_size, val_dep_size, val_dep_size),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
 
         val_transform = Compose(val_transforms)
 
-        self.val_source_dset = Dataset(val_source_dset_cfg, val_transform)
-        self.val_target_dset = Dataset(val_target_dset_cfg, val_transform)
+        self.val_source_dset = Dataset(
+            val_source_dset_root,
+            val_source_input_file,
+            False,
+            "",
+            -1,
+            "",
+            True,
+            dep_range,
+            dep_cmap,
+            val_transform,
+        )
+        self.val_target_dset = Dataset(
+            val_target_dset_root,
+            val_target_input_file,
+            False,
+            "",
+            -1,
+            "",
+            True,
+            dep_range,
+            dep_cmap,
+            val_transform,
+        )
 
         val_bs = hcfg("dep.val_bs", int)
         self.val_source_loader = DataLoader(
@@ -96,13 +136,11 @@ class D4DepthTrainer:
             div_factor=20,
         )
 
-        self.dep_range = hcfg("dep.train_dataset.dep_range", Tuple[float, float])
-        self.loss_fn = MaskedL1Loss(self.dep_range[1])
+        self.loss_fn = MaskedL1Loss(dep_range[1])
+        self.rmse = RMSE(min_depth=dep_range[0], max_depth=dep_range[1])
 
-        self.summary_writer = SummaryWriter(get_out_dir() / "d4dep/tensorboard")
-
-        self.rmse = RMSE(min_depth=self.dep_range[0], max_depth=self.dep_range[1])
-
+        self.logdir = get_out_dir() / "d4dep"
+        self.summary_writer = SummaryWriter(self.logdir / "tensorboard")
         self.global_step = 0
 
     def train(self) -> None:
@@ -161,7 +199,7 @@ class D4DepthTrainer:
             val_target_rmse = self.val("target")
             self.summary_writer.add_scalar("val_target/rmse", val_target_rmse, self.global_step)
 
-        ckpt_path = self.logdir + "ckpt.pt"
+        ckpt_path = self.logdir / "ckpt.pt"
         ckpt = {"model": self.model}
         torch.save(ckpt, ckpt_path)
 
@@ -185,8 +223,8 @@ class D4DepthTrainer:
 
         img = np.array(images[0].detach().cpu())
         img = denormalize(img, IMAGENET_MEAN, IMAGENET_STD)
-        dep_img_gt = self.val_source_dset.get_dep_img(labels[0].detach().cpu())
-        dep_img_pred = self.val_source_dset.get_dep_img(pred[0].detach().cpu())
+        dep_img_gt = loader.dataset.get_dep_img(labels[0].detach().cpu())
+        dep_img_pred = loader.dataset.get_dep_img(pred[0].detach().cpu())
 
         self.summary_writer.add_image(f"val_{dataset}/image", img, self.global_step)
         self.summary_writer.add_image(

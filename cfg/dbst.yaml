@@ -1,13 +1,15 @@
 train_dataset: "@BASE(dataset)"
 val_dataset: "@BASE(dataset)"
+
 img_size: !!python/tuple [512, 1024]
 train_sem_size: !!python/tuple [512, 1024]
 train_crop_size: !!python/tuple [512, 1024]
 val_sem_size: !!python/tuple [1024, 2048]
+
+sem_num_classes: 19
+sem_ignore_index: 19
+
 train_bs: 8
 val_bs: 8
 lr: 1e-3
 num_epochs: 100
-logdir: "logs/dbst"
-num_classes: 19
-ignore_index: 19

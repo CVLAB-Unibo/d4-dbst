@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, Dict, Tuple
 
 import torch
@@ -20,9 +21,15 @@ from trainers.metrics import IoU
 
 class D4TransferTrainer:
     def __init__(self) -> None:
-        train_dset_cfg = hcfg("transfer.train_dataset", Dict[str, Any])
-        img_size = hcfg("transfer.img_size", Tuple[int, int])
-        train_sem_size = hcfg("transfer.train_sem_size", Tuple[int, int])
+        img_size = hcfg("sem.img_size", Tuple[int, int])
+        sem_cmap = hcfg("sem.sem_cmap", str)
+        sem_num_classes = hcfg("sem.sem_num_classes", int)
+        sem_ignore_index = hcfg("sem.sem_ignore_index", int)
+
+        train_dset_root = Path(hcfg("sem.train_dataset.root", str))
+        train_input_file = Path(hcfg("sem.train_dataset.input_file", str))
+        train_sem_size = hcfg("sem.train_sem_size", Tuple[int, int])
+        train_sem_map = hcfg("sem.train_dataset.sem_map", str)
 
         train_transforms = [
             ToTensor(),
@@ -38,7 +45,18 @@ class D4TransferTrainer:
         ]
 
         train_transform = Compose(train_transforms)
-        train_dset = Dataset(train_dset_cfg, train_transform)
+        train_dset = Dataset(
+            train_dset_root,
+            train_input_file,
+            True,
+            train_sem_map,
+            sem_ignore_index,
+            sem_cmap,
+            False,
+            (-1, -1),
+            "",
+            train_transform,
+        )
 
         train_bs = hcfg("transfer.train_bs", int)
         self.train_loader = DataLoader(
@@ -49,9 +67,13 @@ class D4TransferTrainer:
             collate_fn=Dataset.collate_fn,
         )
 
-        val_source_dset_cfg = hcfg("transfer.val_source_dataset", Dict[str, Any])
-        val_target_dset_cfg = hcfg("transfer.val_target_dataset", Dict[str, Any])
-        val_sem_size = hcfg("transfer.val_sem_size", Tuple[int, int])
+        val_source_dset_root = Path(hcfg("sem.val_source_dataset.root", str))
+        val_source_input_file = Path(hcfg("sem.val_source_dataset.input_file", str))
+        val_source_sem_map = hcfg("sem.val_source_dataset.sem_map", str)
+        val_target_dset_root = Path(hcfg("sem.val_target_dataset.root", str))
+        val_target_input_file = Path(hcfg("sem.val_target_dataset.input_file", str))
+        val_target_sem_map = hcfg("sem.val_target_dataset.sem_map", str)
+        val_sem_size = hcfg("sem.val_sem_size", Tuple[int, int])
 
         val_transforms = [
             ToTensor(),
@@ -61,8 +83,30 @@ class D4TransferTrainer:
 
         val_transform = Compose(val_transforms)
 
-        val_source_dset = Dataset(val_source_dset_cfg, val_transform)
-        val_target_dset = Dataset(val_target_dset_cfg, val_transform)
+        val_source_dset = Dataset(
+            val_source_dset_root,
+            val_source_input_file,
+            True,
+            val_source_sem_map,
+            sem_ignore_index,
+            sem_cmap,
+            False,
+            (-1, -1),
+            "",
+            val_transform,
+        )
+        val_target_dset = Dataset(
+            val_target_dset_root,
+            val_target_input_file,
+            True,
+            val_target_sem_map,
+            sem_ignore_index,
+            sem_cmap,
+            False,
+            (-1, -1),
+            "",
+            val_transform,
+        )
 
         val_bs = hcfg("transfer.val_bs", int)
         self.val_source_loader = DataLoader(
@@ -81,7 +125,7 @@ class D4TransferTrainer:
         num_classes = hcfg("sem.train_dataset.sem_num_classes", int)
 
         model_dep = Res_Deeplab(num_classes=1, use_sigmoid=True).cuda()
-        dep_ckpt_path = hcfg("transfer.dep_ckpt_path", str)
+        dep_ckpt_path = get_out_dir() / "d4dep/ckpt.pt"
         dep_ckpt = torch.load(dep_ckpt_path)
         model_dep.load_state_dict(dep_ckpt["model"])
 
@@ -90,7 +134,7 @@ class D4TransferTrainer:
         model_dep.eval()
 
         model_sem = Res_Deeplab(num_classes=num_classes).cuda()
-        sem_ckpt_path = hcfg("transfer.sem_ckpt_path", str)
+        sem_ckpt_path = get_out_dir() / "d4sem/ckpt.pt"
         sem_ckpt = torch.load(sem_ckpt_path)
         model_sem.load_state_dict(sem_ckpt["model"])
 
@@ -115,13 +159,11 @@ class D4TransferTrainer:
             div_factor=20,
         )
 
-        ignore_index = hcfg("sem.train_dataset.sem_ignore_index", int)
-        self.loss_fn = nn.CrossEntropyLoss(ignore_index=ignore_index)
+        self.loss_fn = nn.CrossEntropyLoss(ignore_index=sem_ignore_index)
+        self.iou = IoU(num_classes=num_classes + 1, ignore_index=sem_ignore_index)
 
-        self.summary_writer = SummaryWriter(get_out_dir() / "d4transfer/tensorboard")
-
-        self.iou = IoU(num_classes=num_classes + 1, ignore_index=ignore_index)
-
+        self.logdir = get_out_dir() / "d4_transfer"
+        self.summary_writer = SummaryWriter(self.logdir / "tensorboard")
         self.global_step = 0
 
     def train(self) -> None:
@@ -154,7 +196,7 @@ class D4TransferTrainer:
             val_target_miou = self.val("target")
             self.summary_writer.add_scalar("val_target/miou", val_target_miou, self.global_step)
 
-        ckpt_path = self.logdir + "ckpt.pt"
+        ckpt_path = self.logdir / "ckpt.pt"
         ckpt = {
             "dep_encoder": self.dep_encoder,
             "sem_decoder": self.sem_decoder,
