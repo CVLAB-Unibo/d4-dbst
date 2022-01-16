@@ -1,12 +1,13 @@
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Tuple
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from hesiod import get_out_dir, hcfg
 from torch import nn
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import OneCycleLR  # type: ignore
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
 from tqdm import tqdm
@@ -14,6 +15,7 @@ from tqdm import tqdm
 from data.dataset import Dataset
 from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, Normalize
 from data.transforms import RandomHorizontalFlip, Resize, ToTensor
+from data.utils import denormalize
 from models.d4transfer import Transfer
 from models.deeplab import Res_Deeplab
 from trainers.metrics import IoU
@@ -45,7 +47,7 @@ class D4TransferTrainer:
         ]
 
         train_transform = Compose(train_transforms)
-        train_dset = Dataset(
+        self.train_dset = Dataset(
             train_dset_root,
             train_input_file,
             True,
@@ -60,11 +62,11 @@ class D4TransferTrainer:
 
         train_bs = hcfg("transfer.train_bs", int)
         self.train_loader = DataLoader(
-            train_dset,
+            self.train_dset,
             train_bs,
             shuffle=True,
             num_workers=8,
-            collate_fn=Dataset.collate_fn,
+            collate_fn=Dataset.collate_fn,  # type: ignore
         )
 
         val_source_dset_root = Path(hcfg("sem.val_source_dataset.root", str))
@@ -113,16 +115,14 @@ class D4TransferTrainer:
             val_source_dset,
             val_bs,
             num_workers=8,
-            collate_fn=Dataset.collate_fn,
+            collate_fn=Dataset.collate_fn,  # type: ignore
         )
         self.val_target_loader = DataLoader(
             val_target_dset,
             val_bs,
             num_workers=8,
-            collate_fn=Dataset.collate_fn,
+            collate_fn=Dataset.collate_fn,  # type: ignore
         )
-
-        num_classes = hcfg("sem.train_dataset.sem_num_classes", int)
 
         model_dep = Res_Deeplab(num_classes=1, use_sigmoid=True).cuda()
         dep_ckpt_path = get_out_dir() / "d4dep/ckpt.pt"
@@ -133,7 +133,7 @@ class D4TransferTrainer:
             p.requires_grad = False
         model_dep.eval()
 
-        model_sem = Res_Deeplab(num_classes=num_classes).cuda()
+        model_sem = Res_Deeplab(num_classes=sem_num_classes).cuda()
         sem_ckpt_path = get_out_dir() / "d4sem/ckpt.pt"
         sem_ckpt = torch.load(sem_ckpt_path)
         model_sem.load_state_dict(sem_ckpt["model"])
@@ -160,7 +160,7 @@ class D4TransferTrainer:
         )
 
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=sem_ignore_index)
-        self.iou = IoU(num_classes=num_classes + 1, ignore_index=sem_ignore_index)
+        self.iou = IoU(num_classes=sem_num_classes + 1, ignore_index=sem_ignore_index)
 
         self.logdir = get_out_dir() / "d4_transfer"
         self.summary_writer = SummaryWriter(self.logdir / "tensorboard")
@@ -180,8 +180,31 @@ class D4TransferTrainer:
 
                 loss = F.mse_loss(output_transfer, output_sem_encoder)
 
-                if self.global_step % 100 == 99:
+                if self.global_step % 100 == 0:
                     self.summary_writer.add_scalar("train/loss", loss.item(), self.global_step)
+
+                    with torch.no_grad():
+                        pred = self.sem_decoder(output_transfer)
+
+                    img = np.array(images[0].detach().cpu())
+                    img = denormalize(img, IMAGENET_MEAN, IMAGENET_STD)
+                    sem_img_gt = self.train_dset.get_sem_img(labels[0].detach().cpu())
+                    pred_labels = torch.argmax(pred[0].detach().cpu(), dim=0)
+                    sem_img_pred = self.train_dset.get_sem_img(pred_labels)
+
+                    self.summary_writer.add_image("train/image", img, self.global_step)
+                    self.summary_writer.add_image(
+                        "train/gt",
+                        sem_img_gt,
+                        self.global_step,
+                        dataformats="HWC",
+                    )
+                    self.summary_writer.add_image(
+                        "train/pred",
+                        sem_img_pred,
+                        self.global_step,
+                        dataformats="HWC",
+                    )
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -223,5 +246,25 @@ class D4TransferTrainer:
             pred = F.interpolate(pred, size=(h, w), mode="bilinear", align_corners=True)
 
             self.iou.add(pred.detach(), labels)
+
+        img = np.array(images[0].detach().cpu())  # type: ignore
+        img = denormalize(img, IMAGENET_MEAN, IMAGENET_STD)
+        sem_img_gt = loader.dataset.get_sem_img(labels[0].detach().cpu())  # type: ignore
+        pred_labels = torch.argmax(pred[0].detach().cpu(), dim=0)  # type: ignore
+        sem_img_pred = loader.dataset.get_sem_img(pred_labels)
+
+        self.summary_writer.add_image(f"val_{dataset}/image", img, self.global_step)
+        self.summary_writer.add_image(
+            f"val_{dataset}/gt",
+            sem_img_gt,
+            self.global_step,
+            dataformats="HWC",
+        )
+        self.summary_writer.add_image(
+            f"val_{dataset}/pred",
+            sem_img_pred,
+            self.global_step,
+            dataformats="HWC",
+        )
 
         return self.iou.value()[0]

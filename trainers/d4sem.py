@@ -1,12 +1,13 @@
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Tuple
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from hesiod import get_out_dir, hcfg
 from torch import nn
 from torch.optim import SGD
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import OneCycleLR  # type: ignore
 from torch.utils import model_zoo
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
@@ -15,6 +16,7 @@ from tqdm import tqdm
 from data.dataset import Dataset
 from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, Normalize
 from data.transforms import RandomHorizontalFlip, Resize, ToTensor
+from data.utils import denormalize
 from models.deeplab import Res_Deeplab
 from trainers.metrics import IoU
 
@@ -40,7 +42,7 @@ class D4SemanticsTrainer:
         ]
 
         train_transform = Compose(train_transforms)
-        train_dset = Dataset(
+        self.train_dset = Dataset(
             train_dset_root,
             train_input_file,
             True,
@@ -55,11 +57,11 @@ class D4SemanticsTrainer:
 
         train_bs = hcfg("sem.train_bs", int)
         self.train_loader = DataLoader(
-            train_dset,
+            self.train_dset,
             train_bs,
             shuffle=True,
             num_workers=8,
-            collate_fn=Dataset.collate_fn,
+            collate_fn=Dataset.collate_fn,  # type: ignore
         )
 
         val_source_dset_root = Path(hcfg("sem.val_source_dataset.root", str))
@@ -108,20 +110,20 @@ class D4SemanticsTrainer:
             val_source_dset,
             val_bs,
             num_workers=8,
-            collate_fn=Dataset.collate_fn,
+            collate_fn=Dataset.collate_fn,  # type: ignore
         )
         self.val_target_loader = DataLoader(
             val_target_dset,
             val_bs,
             num_workers=8,
-            collate_fn=Dataset.collate_fn,
+            collate_fn=Dataset.collate_fn,  # type: ignore
         )
 
         self.model = Res_Deeplab(num_classes=sem_num_classes).cuda()
         self.model.eval()
 
         url = "https://download.pytorch.org/models/resnet50-19c8e357.pth"
-        saved_state_dict = model_zoo.load_url(url)
+        saved_state_dict = model_zoo.load_url(url)  # type: ignore
         new_params = self.model.state_dict().copy()
         for i in saved_state_dict:
             i_parts = str(i).split(".")
@@ -163,8 +165,28 @@ class D4SemanticsTrainer:
 
                 loss = self.loss_fn(pred, labels)
 
-                if self.global_step % 100 == 99:
+                if self.global_step % 100 == 0:
                     self.summary_writer.add_scalar("train/loss", loss.item(), self.global_step)
+
+                    img = np.array(images[0].detach().cpu())
+                    img = denormalize(img, IMAGENET_MEAN, IMAGENET_STD)
+                    sem_img_gt = self.train_dset.get_sem_img(labels[0].detach().cpu())
+                    pred_labels = torch.argmax(pred[0].detach().cpu(), dim=0)
+                    sem_img_pred = self.train_dset.get_sem_img(pred_labels)
+
+                    self.summary_writer.add_image("train/image", img, self.global_step)
+                    self.summary_writer.add_image(
+                        "train/gt",
+                        sem_img_gt,
+                        self.global_step,
+                        dataformats="HWC",
+                    )
+                    self.summary_writer.add_image(
+                        "train/pred",
+                        sem_img_pred,
+                        self.global_step,
+                        dataformats="HWC",
+                    )
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -204,5 +226,25 @@ class D4SemanticsTrainer:
             pred = F.interpolate(pred, size=(h, w), mode="bilinear", align_corners=True)
 
             self.iou.add(pred.detach(), labels)
+
+        img = np.array(images[0].detach().cpu())  # type: ignore
+        img = denormalize(img, IMAGENET_MEAN, IMAGENET_STD)
+        sem_img_gt = loader.dataset.get_sem_img(labels[0].detach().cpu())  # type: ignore
+        pred_labels = torch.argmax(pred[0].detach().cpu(), dim=0)  # type: ignore
+        sem_img_pred = loader.dataset.get_sem_img(pred_labels)
+
+        self.summary_writer.add_image(f"val_{dataset}/image", img, self.global_step)
+        self.summary_writer.add_image(
+            f"val_{dataset}/gt",
+            sem_img_gt,
+            self.global_step,
+            dataformats="HWC",
+        )
+        self.summary_writer.add_image(
+            f"val_{dataset}/pred",
+            sem_img_pred,
+            self.global_step,
+            dataformats="HWC",
+        )
 
         return self.iou.value()[0]

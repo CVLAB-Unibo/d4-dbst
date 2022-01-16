@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from hesiod import get_out_dir, hcfg
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import OneCycleLR  # type: ignore
 from torch.utils import model_zoo
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
@@ -58,7 +58,7 @@ class D4DepthTrainer:
             train_bs,
             shuffle=True,
             num_workers=8,
-            collate_fn=Dataset.collate_fn,
+            collate_fn=Dataset.collate_fn,  # type: ignore
         )
 
         val_source_dset_root = Path(hcfg("dep.val_source_dataset.root", str))
@@ -74,7 +74,7 @@ class D4DepthTrainer:
 
         val_transform = Compose(val_transforms)
 
-        self.val_source_dset = Dataset(
+        val_source_dset = Dataset(
             val_source_dset_root,
             val_source_input_file,
             False,
@@ -86,7 +86,7 @@ class D4DepthTrainer:
             dep_cmap,
             val_transform,
         )
-        self.val_target_dset = Dataset(
+        val_target_dset = Dataset(
             val_target_dset_root,
             val_target_input_file,
             False,
@@ -101,23 +101,23 @@ class D4DepthTrainer:
 
         val_bs = hcfg("dep.val_bs", int)
         self.val_source_loader = DataLoader(
-            self.val_source_dset,
+            val_source_dset,
             val_bs,
             num_workers=8,
-            collate_fn=Dataset.collate_fn,
+            collate_fn=Dataset.collate_fn,  # type: ignore
         )
         self.val_target_loader = DataLoader(
-            self.val_target_dset,
+            val_target_dset,
             val_bs,
             num_workers=8,
-            collate_fn=Dataset.collate_fn,
+            collate_fn=Dataset.collate_fn,  # type: ignore
         )
 
         self.model = Res_Deeplab(num_classes=1, use_sigmoid=True).cuda()
         self.model.eval()
 
         url = "https://download.pytorch.org/models/resnet50-19c8e357.pth"
-        saved_state_dict = model_zoo.load_url(url)
+        saved_state_dict = model_zoo.load_url(url)  # type: ignore
         new_params = self.model.state_dict().copy()
         for i in saved_state_dict:
             i_parts = str(i).split(".")
@@ -221,10 +221,10 @@ class D4DepthTrainer:
 
             self.rmse.add(pred.detach(), labels)
 
-        img = np.array(images[0].detach().cpu())
+        img = np.array(images[0].detach().cpu())  # type: ignore
         img = denormalize(img, IMAGENET_MEAN, IMAGENET_STD)
-        dep_img_gt = loader.dataset.get_dep_img(labels[0].detach().cpu())
-        dep_img_pred = loader.dataset.get_dep_img(pred[0].detach().cpu())
+        dep_img_gt = loader.dataset.get_dep_img(labels[0].detach().cpu())  # type: ignore
+        dep_img_pred = loader.dataset.get_dep_img(pred[0].detach().cpu())  # type: ignore
 
         self.summary_writer.add_image(f"val_{dataset}/image", img, self.global_step)
         self.summary_writer.add_image(
