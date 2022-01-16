@@ -34,7 +34,6 @@ class D4TransferTrainer:
         train_sem_map = hcfg("sem.train_dataset.sem_map", str)
 
         train_transforms = [
-            ToTensor(),
             Resize(img_size, train_sem_size, (-1, -1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
             RandomHorizontalFlip(p=0.5),
@@ -78,7 +77,6 @@ class D4TransferTrainer:
         val_sem_size = hcfg("sem.val_sem_size", Tuple[int, int])
 
         val_transforms = [
-            ToTensor(),
             Resize(img_size, val_sem_size, (-1, 1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
