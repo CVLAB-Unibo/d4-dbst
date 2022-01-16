@@ -8,6 +8,7 @@ val_sem_size: !!python/tuple [1024, 2048]
 
 sem_num_classes: 19
 sem_ignore_index: 19
+sem_cmap: "cmap19"
 
 train_bs: 8
 val_bs: 8
