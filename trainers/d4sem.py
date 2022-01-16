@@ -34,10 +34,11 @@ class D4SemanticsTrainer:
         train_sem_map = hcfg("sem.train_dataset.sem_map", str)
 
         train_transforms = [
-            Resize(img_size, train_sem_size, (-1, -1)),
-            Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
-            RandomHorizontalFlip(p=0.5),
             ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+            ToTensor(),
+            Resize(img_size, train_sem_size, (-1, -1)),
+            RandomHorizontalFlip(p=0.5),
+            Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
         train_transform = Compose(train_transforms)
 
@@ -72,6 +73,7 @@ class D4SemanticsTrainer:
         val_sem_size = hcfg("sem.val_sem_size", Tuple[int, int])
 
         val_transforms = [
+            ToTensor(),
             Resize(img_size, val_sem_size, (-1, -1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
@@ -157,7 +159,7 @@ class D4SemanticsTrainer:
                 labels = labels.cuda()
 
                 pred = self.model(images)
-                h, w = labels.shape[2], labels.shape[3]
+                h, w = labels.shape[1], labels.shape[2]
                 pred = F.interpolate(pred, size=(h, w), mode="bilinear", align_corners=True)
 
                 loss = self.loss_fn(pred, labels)
@@ -219,7 +221,7 @@ class D4SemanticsTrainer:
             labels = labels.cuda()
 
             pred = self.model(images)
-            h, w = labels.shape[2], labels.shape[3]
+            h, w = labels.shape[1], labels.shape[2]
             pred = F.interpolate(pred, size=(h, w), mode="bilinear", align_corners=True)
 
             self.iou.add(pred.detach(), labels)

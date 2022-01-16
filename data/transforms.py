@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -10,22 +10,20 @@ from torchvision.transforms import InterpolationMode
 
 T_SAMPLE = Tuple[Image.Image, Optional[np.ndarray], Optional[np.ndarray]]
 T_ITEM = Tuple[Tensor, Optional[Tensor], Optional[Tensor]]
-T_TRANSFORM = Callable[[T_ITEM], T_ITEM]
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.225, 0.224]
 
 
 class Compose:
-    def __init__(self, transforms: List[T_TRANSFORM]):
-        self.to_tensor = ToTensor()
+    def __init__(self, transforms: List[Callable]):
         self.transforms = transforms
 
     def __call__(self, sample: T_SAMPLE) -> T_ITEM:
-        item = self.to_tensor(sample)
+        item = sample
         for t in self.transforms:
             item = t(item)
-        return item
+        return cast(T_ITEM, item)
 
 
 class RandomHorizontalFlip:
@@ -164,7 +162,7 @@ class ColorJitter:
             hue=hue,
         )
 
-    def __call__(self, item: T_ITEM) -> T_ITEM:
+    def __call__(self, item: T_SAMPLE) -> T_SAMPLE:
         img, sem, dep = item
         img = self.color_jitter(img)
         return img, sem, dep

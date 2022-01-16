@@ -23,26 +23,22 @@ from utils import progress_bar
 
 class D4TransferTrainer:
     def __init__(self) -> None:
-        img_size = hcfg("sem.img_size", Tuple[int, int])
-        sem_cmap = hcfg("sem.sem_cmap", str)
-        sem_num_classes = hcfg("sem.sem_num_classes", int)
-        sem_ignore_index = hcfg("sem.sem_ignore_index", int)
+        img_size = hcfg("transfer.img_size", Tuple[int, int])
+        sem_cmap = hcfg("transfer.sem_cmap", str)
+        sem_num_classes = hcfg("transfer.sem_num_classes", int)
+        sem_ignore_index = hcfg("transfer.sem_ignore_index", int)
 
-        train_dset_root = Path(hcfg("sem.train_dataset.root", str))
-        train_input_file = Path(hcfg("sem.train_dataset.input_file", str))
-        train_sem_size = hcfg("sem.train_sem_size", Tuple[int, int])
-        train_sem_map = hcfg("sem.train_dataset.sem_map", str)
+        train_dset_root = Path(hcfg("transfer.train_dataset.root", str))
+        train_input_file = Path(hcfg("transfer.train_dataset.input_file", str))
+        train_sem_size = hcfg("transfer.train_sem_size", Tuple[int, int])
+        train_sem_map = hcfg("transfer.train_dataset.sem_map", str)
 
         train_transforms = [
+            ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+            ToTensor(),
             Resize(img_size, train_sem_size, (-1, -1)),
-            Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
             RandomHorizontalFlip(p=0.5),
-            ColorJitter(
-                brightness=0.5,
-                contrast=0.5,
-                saturation=0.5,
-                hue=0.5,
-            ),
+            Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
 
         train_transform = Compose(train_transforms)
@@ -68,15 +64,16 @@ class D4TransferTrainer:
             collate_fn=Dataset.collate_fn,  # type: ignore
         )
 
-        val_source_dset_root = Path(hcfg("sem.val_source_dataset.root", str))
-        val_source_input_file = Path(hcfg("sem.val_source_dataset.input_file", str))
-        val_source_sem_map = hcfg("sem.val_source_dataset.sem_map", str)
-        val_target_dset_root = Path(hcfg("sem.val_target_dataset.root", str))
-        val_target_input_file = Path(hcfg("sem.val_target_dataset.input_file", str))
-        val_target_sem_map = hcfg("sem.val_target_dataset.sem_map", str)
-        val_sem_size = hcfg("sem.val_sem_size", Tuple[int, int])
+        val_source_dset_root = Path(hcfg("transfer.val_source_dataset.root", str))
+        val_source_input_file = Path(hcfg("transfer.val_source_dataset.input_file", str))
+        val_source_sem_map = hcfg("transfer.val_source_dataset.sem_map", str)
+        val_target_dset_root = Path(hcfg("transfer.val_target_dataset.root", str))
+        val_target_input_file = Path(hcfg("transfer.val_target_dataset.input_file", str))
+        val_target_sem_map = hcfg("transfer.val_target_dataset.sem_map", str)
+        val_sem_size = hcfg("transfer.val_sem_size", Tuple[int, int])
 
         val_transforms = [
+            ToTensor(),
             Resize(img_size, val_sem_size, (-1, 1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
@@ -123,7 +120,8 @@ class D4TransferTrainer:
         )
 
         model_dep = Res_Deeplab(num_classes=1, use_sigmoid=True).cuda()
-        dep_ckpt_path = get_out_dir() / "d4dep/ckpt.pt"
+        # dep_ckpt_path = get_out_dir() / "d4dep/ckpt.pt"
+        dep_ckpt_path = "logs/debug_transfer_/d4dep/ckpt.pt"
         dep_ckpt = torch.load(dep_ckpt_path)
         model_dep.load_state_dict(dep_ckpt["model"])
 
@@ -132,7 +130,8 @@ class D4TransferTrainer:
         model_dep.eval()
 
         model_sem = Res_Deeplab(num_classes=sem_num_classes).cuda()
-        sem_ckpt_path = get_out_dir() / "d4sem/ckpt.pt"
+        # sem_ckpt_path = get_out_dir() / "d4sem/ckpt.pt"
+        sem_ckpt_path = "logs/debug_transfer_/d4sem/ckpt.pt"
         sem_ckpt = torch.load(sem_ckpt_path)
         model_sem.load_state_dict(sem_ckpt["model"])
 

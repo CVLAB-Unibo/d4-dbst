@@ -13,7 +13,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 
 from data.dataset import Dataset
 from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, Normalize
-from data.transforms import RandomHorizontalFlip, Resize
+from data.transforms import RandomHorizontalFlip, Resize, ToTensor
 from data.utils import denormalize
 from models.deeplab import Res_Deeplab
 from trainers.losses import MaskedL1Loss
@@ -32,10 +32,11 @@ class D4DepthTrainer:
         train_dep_size = hcfg("dep.train_dep_size", Tuple[int, int])
 
         train_transforms = [
+            ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+            ToTensor(),
             Resize(img_size, (-1, -1), train_dep_size),
-            # ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
-            Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
             RandomHorizontalFlip(p=0.5),
+            Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
         train_transform = Compose(train_transforms)
 
@@ -68,6 +69,7 @@ class D4DepthTrainer:
         val_dep_size = hcfg("dep.val_dep_size", Tuple[int, int])
 
         val_transforms = [
+            ToTensor(),
             Resize(img_size, val_dep_size, val_dep_size),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]

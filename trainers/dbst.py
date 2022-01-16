@@ -35,12 +35,13 @@ class D4SemanticsTrainer:
         train_sem_map = hcfg("train_dataset.sem_map", str)
 
         train_transforms = [
+            ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+            ToTensor(),
             Resize(img_size, train_sem_size, (-1, -1)),
-            Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
             RandomHorizontalFlip(p=0.5),
             RandomScale((0.5, 1.5)),
             RandomCrop(train_crop_size),
-            ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+            Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
         train_transform = Compose(train_transforms)
 
@@ -72,6 +73,7 @@ class D4SemanticsTrainer:
         val_sem_size = hcfg("val_sem_size", Tuple[int, int])
 
         val_transforms = [
+            ToTensor(),
             Resize(img_size, val_sem_size, (-1, -1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
