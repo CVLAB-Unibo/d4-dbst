@@ -10,7 +10,6 @@ from torch.optim.lr_scheduler import OneCycleLR  # type: ignore
 from torch.utils import model_zoo
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
-from tqdm import tqdm
 
 from data.dataset import Dataset
 from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, Normalize
@@ -19,6 +18,7 @@ from data.utils import denormalize
 from models.deeplab import Res_Deeplab
 from trainers.losses import MaskedL1Loss
 from trainers.metrics import RMSE
+from utils import progress_bar
 
 
 class D4DepthTrainer:
@@ -147,7 +147,7 @@ class D4DepthTrainer:
         for epoch in range(self.num_epochs):
             self.rmse.reset()
 
-            for batch in tqdm(self.train_loader, f"Epoch {epoch}/{self.num_epochs}", ncols=60):
+            for batch in progress_bar(self.train_loader, f"Epoch {epoch}/{self.num_epochs}"):
                 images, _, labels = batch
                 images = images.cuda()
                 labels = labels.cuda()
@@ -209,7 +209,7 @@ class D4DepthTrainer:
 
         self.rmse.reset()
 
-        for batch in tqdm(loader, f"Validating on {dataset}", ncols=60):
+        for batch in progress_bar(loader, f"Validating on {dataset}"):
             images, _, labels = batch
             images = images.cuda()
             labels = labels.cuda()

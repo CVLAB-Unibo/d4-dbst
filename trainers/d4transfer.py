@@ -10,7 +10,6 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR  # type: ignore
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard.writer import SummaryWriter
-from tqdm import tqdm
 
 from data.dataset import Dataset
 from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, Normalize
@@ -19,6 +18,7 @@ from data.utils import denormalize
 from models.d4transfer import Transfer
 from models.deeplab import Res_Deeplab
 from trainers.metrics import IoU
+from utils import progress_bar
 
 
 class D4TransferTrainer:
@@ -167,7 +167,7 @@ class D4TransferTrainer:
     def train(self) -> None:
         for epoch in range(self.num_epochs):
 
-            for batch in tqdm(self.train_loader, f"Epoch {epoch}/{self.num_epochs}", ncols=60):
+            for batch in progress_bar(self.train_loader, f"Epoch {epoch}/{self.num_epochs}"):
                 images, labels, _ = batch
                 images = images.cuda()
                 labels = labels.cuda()
@@ -231,7 +231,7 @@ class D4TransferTrainer:
 
         self.iou.reset()
 
-        for batch in tqdm(loader, f"Validating on {dataset}", ncols=60):
+        for batch in progress_bar(loader, f"Validating on {dataset}"):
             images, labels, _ = batch
             images = images.cuda()
             labels = labels.cuda()
