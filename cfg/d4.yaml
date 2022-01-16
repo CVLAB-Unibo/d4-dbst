@@ -30,8 +30,8 @@ sem:
 
   train_bs: 2
   val_bs: 2
-  lr: 1e-3
-  num_epochs: 100
+  lr: 1e-4
+  num_epochs: 70
 
 transfer:
   train_dataset: "@BASE(dataset)"
@@ -42,14 +42,11 @@ transfer:
   train_sem_size: !!python/tuple [512, 1024]
   val_sem_size: !!python/tuple [1024, 2048]
 
-  dep_ckpt_path: logs/d4dep/ckpt.pt
-  sem_ckpt_path: logs/d4sem/ckpt.pt
-
   sem_num_classes: 19
   sem_ignore_index: 19
   sem_cmap: "cmap19"
 
   train_bs: 2
   val_bs: 2
-  lr: 1e-3
-  num_epochs: 100
+  lr: 1e-4
+  num_epochs: 30
