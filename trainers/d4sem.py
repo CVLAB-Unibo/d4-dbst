@@ -17,6 +17,7 @@ from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, N
 from data.transforms import RandomHorizontalFlip, Resize, ToTensor
 from data.utils import denormalize
 from models.deeplab import Res_Deeplab
+from trainers.losses import WeightedCrossEntropy
 from trainers.metrics import IoU
 from utils import progress_bar
 
@@ -141,7 +142,7 @@ class D4SemanticsTrainer:
             div_factor=20,
         )
 
-        self.loss_fn = nn.CrossEntropyLoss(ignore_index=sem_ignore_index)
+        self.loss_fn = WeightedCrossEntropy(sem_ignore_index, sem_num_classes)
         self.iou = IoU(num_classes=sem_num_classes + 1, ignore_index=sem_ignore_index)
 
         self.logdir = get_out_dir() / "d4sem"
