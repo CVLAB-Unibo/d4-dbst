@@ -1,7 +1,7 @@
 dep:
-  train_dataset: "@BASE(dataset)"
-  val_source_dataset: "@BASE(dataset)"
-  val_target_dataset: "@BASE(dataset)"
+  train_dataset: "@BASE(dataset,mixed_cs_gta_train)"
+  val_source_dataset: "@BASE(dataset,gta_val)"
+  val_target_dataset: "@BASE(dataset,cs_val)"
 
   img_size: !!python/tuple [512, 1024]
   train_dep_size: !!python/tuple [512, 1024]
@@ -16,9 +16,9 @@ dep:
   num_epochs: 70
 
 sem:
-  train_dataset: "@BASE(dataset)"
-  val_source_dataset: "@BASE(dataset)"
-  val_target_dataset: "@BASE(dataset)"
+  train_dataset: "@BASE(dataset,gta_train)"
+  val_source_dataset: "@BASE(dataset,gta_val)"
+  val_target_dataset: "@BASE(dataset,cs_val)"
 
   img_size: !!python/tuple [512, 1024]
   train_sem_size: !!python/tuple [512, 1024]
@@ -34,9 +34,9 @@ sem:
   num_epochs: 70
 
 transfer:
-  train_dataset: "@BASE(dataset)"
-  val_source_dataset: "@BASE(dataset)"
-  val_target_dataset: "@BASE(dataset)"
+  train_dataset: "@BASE(dataset,gta_train)"
+  val_source_dataset: "@BASE(dataset,gta_val)"
+  val_target_dataset: "@BASE(dataset,source_val)"
 
   img_size: !!python/tuple [512, 1024]
   train_sem_size: !!python/tuple [512, 1024]
