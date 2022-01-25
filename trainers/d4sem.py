@@ -14,7 +14,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 
 from data.dataset import Dataset
 from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, Normalize
-from data.transforms import RandomHorizontalFlip, Resize, ToTensor
+from data.transforms import RandomHorizontalFlip, ToTensor
 from data.utils import denormalize
 from models.deeplab import Res_Deeplab
 from trainers.losses import WeightedCrossEntropy
@@ -37,7 +37,6 @@ class D4SemanticsTrainer:
         train_transforms = [
             ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
             ToTensor(),
-            Resize(img_size, train_sem_size, (-1, -1)),
             RandomHorizontalFlip(p=0.5),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
@@ -54,6 +53,8 @@ class D4SemanticsTrainer:
             (-1, -1),
             "",
             train_transform,
+            img_size,
+            train_sem_size,
         )
 
         train_bs = hcfg("sem.train_bs", int)
@@ -75,7 +76,6 @@ class D4SemanticsTrainer:
 
         val_transforms = [
             ToTensor(),
-            Resize(img_size, val_sem_size, (-1, -1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
         val_transform = Compose(val_transforms)
@@ -91,6 +91,8 @@ class D4SemanticsTrainer:
             (-1, -1),
             "",
             val_transform,
+            img_size,
+            val_sem_size,
         )
         val_target_dset = Dataset(
             val_target_dset_root,
@@ -103,6 +105,8 @@ class D4SemanticsTrainer:
             (-1, -1),
             "",
             val_transform,
+            img_size,
+            val_sem_size,
         )
 
         val_bs = hcfg("sem.val_bs", int)
@@ -207,7 +211,7 @@ class D4SemanticsTrainer:
             self.summary_writer.add_scalar("val_target/miou", val_target_miou, self.global_step)
 
         ckpt_path = self.logdir / "ckpt.pt"
-        ckpt = {"model": self.model}
+        ckpt = {"model": self.model.state_dict()}
         torch.save(ckpt, ckpt_path)
 
     @torch.no_grad()

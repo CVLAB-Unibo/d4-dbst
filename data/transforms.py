@@ -42,42 +42,6 @@ class RandomHorizontalFlip:
 
         return img, sem, dep
 
-
-class Resize:
-    def __init__(
-        self,
-        img_size: Tuple[int, int],
-        sem_size: Tuple[int, int],
-        dep_size: Tuple[int, int],
-        img_interp_mode: InterpolationMode = InterpolationMode.BICUBIC,
-        sem_interp_mode: InterpolationMode = InterpolationMode.NEAREST,
-        dep_interp_mode: InterpolationMode = InterpolationMode.BILINEAR,
-    ):
-        self.img_size = img_size
-        self.img_interp_mode = img_interp_mode
-        self.sem_size = sem_size
-        self.sem_interp_mode = sem_interp_mode
-        self.dep_size = dep_size
-        self.dep_interp_mode = dep_interp_mode
-
-    def __call__(self, item: T_ITEM) -> T_ITEM:
-        img, sem, dep = item
-
-        resized_img = F.resize(img, list(self.img_size), self.img_interp_mode)
-        resized_sem, resized_dep = None, None
-
-        if sem is not None:
-            sem.unsqueeze_(0)
-            resized_sem = F.resize(sem, list(self.sem_size), self.sem_interp_mode)
-            resized_sem.squeeze_()
-        if dep is not None:
-            dep.unsqueeze_(0)
-            resized_dep = F.resize(dep, list(self.dep_size), self.dep_interp_mode)
-            resized_dep.squeeze_()
-
-        return resized_img, resized_sem, resized_dep
-
-
 class RandomScale(object):
     def __init__(
         self,

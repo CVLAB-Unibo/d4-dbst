@@ -30,6 +30,8 @@ class Dataset(TorchDataset, ABC):
         dep_range: Tuple[float, float],
         dep_cmap: str,
         transform: Compose,
+        img_size: Tuple[int, int],
+        label_size: Tuple[int, int],
     ) -> None:
         TorchDataset.__init__(self)
         ABC.__init__(self)
@@ -56,6 +58,8 @@ class Dataset(TorchDataset, ABC):
             self.dep_min, self.dep_max = dep_range
             self.dep_cmap = get_cmap(dep_cmap)
 
+        self.img_size = img_size
+        self.label_size = label_size
         self.transform = transform
 
     def encode_sem(self, sem_img: Image.Image) -> np.ndarray:
@@ -79,11 +83,17 @@ class Dataset(TorchDataset, ABC):
     def __getitem__(self, index: int) -> ITEM_T:
         image_path, sem_path, dep_path = self.samples[index]
         image = Image.open(image_path).convert("RGB")
+        image = image.resize((self.img_size[1], self.img_size[0]), Image.LANCZOS)
         sem, dep = None, None
+
         if self.sem:
-            sem = self.encode_sem(Image.open(sem_path))
+            sem = Image.open(sem_path)
+            sem = sem.resize((self.label_size[1], self.label_size[0]), Image.NEAREST)
+            sem = self.encode_sem(sem)
         if self.dep:
-            dep = img2depth(Image.open(dep_path))
+            dep = Image.open(dep_path)
+            dep = dep.resize((self.label_size[1], self.label_size[0]), Image.BILINEAR)
+            dep = img2depth(dep)
             dep = np.clip(dep, self.dep_min, self.dep_max)
 
         sample = (image, sem, dep)

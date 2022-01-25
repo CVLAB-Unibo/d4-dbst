@@ -13,7 +13,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 
 from data.dataset import Dataset
 from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, Normalize
-from data.transforms import RandomHorizontalFlip, Resize, ToTensor
+from data.transforms import RandomHorizontalFlip, ToTensor
 from data.utils import denormalize
 from models.deeplab import Res_Deeplab
 from trainers.losses import MaskedL1Loss
@@ -34,7 +34,6 @@ class D4DepthTrainer:
         train_transforms = [
             ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
             ToTensor(),
-            Resize(img_size, (-1, -1), train_dep_size),
             RandomHorizontalFlip(p=0.5),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
@@ -51,6 +50,8 @@ class D4DepthTrainer:
             dep_range,
             dep_cmap,
             train_transform,
+            img_size,
+            train_dep_size,
         )
 
         train_bs = hcfg("dep.train_bs", int)
@@ -70,7 +71,6 @@ class D4DepthTrainer:
 
         val_transforms = [
             ToTensor(),
-            Resize(img_size, val_dep_size, val_dep_size),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
 
@@ -87,6 +87,8 @@ class D4DepthTrainer:
             dep_range,
             dep_cmap,
             val_transform,
+            img_size,
+            val_dep_size,
         )
         val_target_dset = Dataset(
             val_target_dset_root,
@@ -99,6 +101,8 @@ class D4DepthTrainer:
             dep_range,
             dep_cmap,
             val_transform,
+            img_size,
+            val_dep_size,
         )
 
         val_bs = hcfg("dep.val_bs", int)
@@ -202,7 +206,7 @@ class D4DepthTrainer:
             self.summary_writer.add_scalar("val_target/rmse", val_target_rmse, self.global_step)
 
         ckpt_path = self.logdir / "ckpt.pt"
-        ckpt = {"model": self.model}
+        ckpt = {"model": self.model.state_dict()}
         torch.save(ckpt, ckpt_path)
 
     @torch.no_grad()

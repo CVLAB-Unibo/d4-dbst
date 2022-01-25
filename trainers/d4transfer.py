@@ -13,7 +13,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 
 from data.dataset import Dataset
 from data.transforms import IMAGENET_MEAN, IMAGENET_STD, ColorJitter, Compose, Normalize
-from data.transforms import RandomHorizontalFlip, Resize, ToTensor
+from data.transforms import RandomHorizontalFlip, ToTensor
 from data.utils import denormalize
 from models.d4transfer import Transfer
 from models.deeplab import Res_Deeplab
@@ -36,7 +36,6 @@ class D4TransferTrainer:
         train_transforms = [
             ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
             ToTensor(),
-            Resize(img_size, train_sem_size, (-1, -1)),
             RandomHorizontalFlip(p=0.5),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
@@ -53,6 +52,8 @@ class D4TransferTrainer:
             (-1, -1),
             "",
             train_transform,
+            img_size,
+            train_sem_size,
         )
 
         train_bs = hcfg("transfer.train_bs", int)
@@ -74,7 +75,6 @@ class D4TransferTrainer:
 
         val_transforms = [
             ToTensor(),
-            Resize(img_size, val_sem_size, (-1, 1)),
             Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]
 
@@ -91,6 +91,8 @@ class D4TransferTrainer:
             (-1, -1),
             "",
             val_transform,
+            img_size,
+            val_sem_size,
         )
         val_target_dset = Dataset(
             val_target_dset_root,
@@ -103,6 +105,8 @@ class D4TransferTrainer:
             (-1, -1),
             "",
             val_transform,
+            img_size,
+            val_sem_size,
         )
 
         val_bs = hcfg("transfer.val_bs", int)
@@ -120,8 +124,7 @@ class D4TransferTrainer:
         )
 
         model_dep = Res_Deeplab(num_classes=1, use_sigmoid=True).cuda()
-        # dep_ckpt_path = get_out_dir() / "d4dep/ckpt.pt"
-        dep_ckpt_path = "logs/debug_transfer_/d4dep/ckpt.pt"
+        dep_ckpt_path = get_out_dir() / "d4dep/ckpt.pt"
         dep_ckpt = torch.load(dep_ckpt_path)
         model_dep.load_state_dict(dep_ckpt["model"])
 
@@ -130,8 +133,7 @@ class D4TransferTrainer:
         model_dep.eval()
 
         model_sem = Res_Deeplab(num_classes=sem_num_classes).cuda()
-        # sem_ckpt_path = get_out_dir() / "d4sem/ckpt.pt"
-        sem_ckpt_path = "logs/debug_transfer_/d4sem/ckpt.pt"
+        sem_ckpt_path = get_out_dir() / "d4sem/ckpt.pt"
         sem_ckpt = torch.load(sem_ckpt_path)
         model_sem.load_state_dict(sem_ckpt["model"])
 
@@ -165,6 +167,7 @@ class D4TransferTrainer:
 
     def train(self) -> None:
         for epoch in range(self.num_epochs):
+            self.transfer.train()
 
             for batch in progress_bar(self.train_loader, f"Epoch {epoch}/{self.num_epochs}"):
                 images, labels, _ = batch
@@ -218,16 +221,16 @@ class D4TransferTrainer:
 
         ckpt_path = self.logdir / "ckpt.pt"
         ckpt = {
-            "dep_encoder": self.dep_encoder,
-            "sem_decoder": self.sem_decoder,
-            "trasnfer": self.transfer,
+            "dep_encoder": self.dep_encoder.state_dict(),
+            "sem_decoder": self.sem_decoder.state_dict(),
+            "transfer": self.transfer.state_dict(),
         }
         torch.save(ckpt, ckpt_path)
 
     @torch.no_grad()
     def val(self, dataset: str) -> float:
         loader = self.val_source_loader if dataset == "source" else self.val_target_loader
-
+        self.transfer.eval()
         self.iou.reset()
 
         for batch in progress_bar(loader, f"Validating on {dataset}"):
@@ -239,7 +242,7 @@ class D4TransferTrainer:
             output_transfer = self.transfer(output_dep_encoder)
             pred = self.sem_decoder(output_transfer)
 
-            h, w = labels.shape[2], labels.shape[3]
+            h, w = labels.shape[1], labels.shape[2]
             pred = F.interpolate(pred, size=(h, w), mode="bilinear", align_corners=True)
 
             self.iou.add(pred.detach(), labels)
