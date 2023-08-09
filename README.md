@@ -2,10 +2,14 @@
 
 The usual pipeline is:
 
-train_net1.py
-train_net2.py
+train_net1.py 
+
+train_net2.py 
+
 train_transfer.py
+
 generate_augmented_labels.py
+
 train_dbst.py
 
 For each step of the pipleine, please refer to the scripts in the 'launcher' folder.
