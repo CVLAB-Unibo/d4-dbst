@@ -11,6 +11,9 @@ __pycache__/
 # C extensions
 *.so
 
+gta2cs_old
+weights
+
 # Distribution / packaging
 .Python
 build/

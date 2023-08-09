@@ -1,3 +1,0 @@
-root: "/media/data2/ldeluigi/datasets"
-input_file: "input_files/gta_train.txt"
-sem_map: "cs19"

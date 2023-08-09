@@ -1,0 +1,18 @@
+{
+    "num_classes": 19,
+    "learning_rate": 1e-4,
+    "batch_size_train": 2,
+    "batch_size_val": 1,
+    "load_size": [1024,512],
+    "label_size": [2048,1024],
+    "num_epochs": 30,
+    "num_workers": 8,
+    "start_epoch": 0,
+    "loss_fn": "l2",
+    "metrics": ["iou", "accuracy"],
+    "architecture": "deeplab_resnet50",
+    "pretrained": false,
+    "task": "segmentation",
+    "ignore_index": 19,
+    "encoding": "cs"
+}
